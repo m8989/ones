@@ -22,14 +22,11 @@ define('CURRENT_DATE_TIME', date('Y-m-d H:i:s'));
 
 // 应用环境
 // 可选： development, production, testing 等，在 /server/phinx.yml中可配置相应的数据库连接
-define('APPLICATION_ENV', 'development');
+//define('APPLICATION_ENV', 'development');
 
 header("Access-Control-Allow-Origin: *");
 
-// 返回信息包含调试信息
-define("RESPONSE_WITH_DEBUG_INFO", true);
-
-define('DEBUG', false);
+define('BUILD_LITE_FILE',true);
 
 /**
  * CORS非简单跨域请求第一次讯问是否支持跨域
@@ -42,7 +39,7 @@ if($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
     exit;
 }
 
-ini_set('session.cookie_lifetime', '600');
+ini_set('session.cookie_lifetime', '99999');
 
 // 检测PHP环境
 if(version_compare(PHP_VERSION,'5.5.9','<')) {
@@ -62,8 +59,7 @@ try{
     $ones = \Symfony\Component\Yaml\Yaml::parse(file_get_contents('./config.yaml'));
 } catch(Exception $e) {}
 
-
-define('APP_DEBUG', true);
+define('APP_DEBUG', $ones['debug']);
 
 //修正POST不能正确获取数据问题
 if(in_array($_SERVER["REQUEST_METHOD"], array("POST", "PUT"))
@@ -81,4 +77,8 @@ define('RUNTIME_PATH','./Runtime/');
 define('CURRENT_TIMESTAMP', time());
 
 // 引入ThinkPHP入口文件
-require './vendor/topthink/thinkphp/ThinkPHP/ThinkPHP.php';
+if(is_file('./RUNTIME/lite.php')) {
+    require './RUNTIME/lite.php';
+} else {
+    require './vendor/topthink/thinkphp/ThinkPHP/ThinkPHP.php';
+}

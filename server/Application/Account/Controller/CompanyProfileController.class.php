@@ -4,7 +4,7 @@
  * @app Account
  * @package Account.controller.CompanyProfile
  * @author laofahai@TEam Swift
- * @link https://ng-erp.com
+ * @link http://ng-erp.com
  * */
 namespace Account\Controller;
 use Account\Service\CompanyProfileService;
@@ -25,7 +25,9 @@ class CompanyProfileController extends BaseRestController {
         $service->init_profile();
 
         $company_service = D('Account/Company');
-        $company_service->where()->save([
+        $company_service->where([
+            "id" => $_GET['company_id']
+        ])->save([
             'name' => I('post.name')
         ]);
 
@@ -41,14 +43,15 @@ class CompanyProfileController extends BaseRestController {
     /*
      * @override 获取公司资料
      * */
-    public function on_read() {
-        $_GET['id'] = get_current_company_id();
-
-        $data = parent::on_read(true);
+    public function on_list() {
+        $_GET['company_id'] = get_current_company_id();
+        unset($_GET['id']);
+        $data = parent::on_list(true);
+        $data = $data[0];
 
         // 公司基本资料
         $company_base_profile = D('Account/Company')->where([
-            'id' => I('get.id')
+            'id' => I('get.company_id')
         ])->find();
 
         foreach(CompanyProfileService::$need_merge as $nm) {

@@ -61,19 +61,15 @@ function decimal_scale($value) {
 }
 
 function DBC($alias = null) {
-    $cache_key = "db_config_".get_current_company_id();
-    $cached = S($cache_key);
-    if(!$cached) {
+    $cache_key = get_company_cache_key('db_config');
+    $cached = F($cache_key);
+    if(DEBUG || !$cached) {
         $cached = D('Home/Config', 'Service')->get_kv_config();
         $cached = get_array_to_kv($cached, 'val', 'alias');
-        S($cache_key, $cached);
+        F($cache_key, $cached);
     }
 
-    if($alias) {
-        return array_key_exists($alias, $cached) ? $cached[$alias] : '';
-    } else {
-        return $cached;
-    }
+    return $alias ? $cached[$alias] : $cached;
 }
 
 // 生成随机字符串
@@ -98,7 +94,7 @@ function parse_yml($file) {
  * **/
 function __($msgid) {
     $cacheId = sprintf('lang/%s/all', CURRENT_LANGUAGE);
-    $lang = S($cacheId);
+    $lang = F($cacheId);
 
     $msgIds = explode('.', $msgid);
     $last = end($msgIds);
@@ -114,10 +110,10 @@ function __($msgid) {
         $app = 'common';
     }
 
-    $lang = $lang[$app] ? $lang[$app] : [];
+    $lang = $lang[$app];
 
     for($i=0;$i<count($msgIds);$i++) {
-        if(array_key_exists($msgIds[$i], $lang)) {
+        if($lang[$msgIds[$i]]) {
             $lang = $lang[$msgIds[$i]];
         } else {
             if($app == 'common') {
@@ -337,6 +333,10 @@ function model_alias_to_label($alias) {
     return __($app.'.'.camelCaseSpace($module));
 }
 
+function model_name_to_table_name($model_name) {
+    return strtolower(preg_replace('/((?<=[a-z])(?=[A-Z]))/', '_', $model_name));
+}
+
 /*
  * 自动生成单据标题
  * */
@@ -379,5 +379,8 @@ function process_with_item_select_ids($field, $multi=false) {
     }
 
     return $multi ? implode(',', $data) : $data[0];
+}
 
+function get_company_cache_key($key) {
+    return 'company/'.get_current_company_id().'/'.$key;
 }

@@ -27,7 +27,7 @@ class NavEvent extends BaseRestEvent {
 
         // 二维数组导航信息
         $flat_navs = array();
-        $flat_cache_key = 'navs/all/flat';
+        $flat_cache_key = 'navs_all_flat';
 
         /*
          * 支持三级菜单
@@ -76,7 +76,7 @@ class NavEvent extends BaseRestEvent {
 
         tag("before_nav_response", $result);
 
-        S($flat_cache_key, $flat_navs);
+        F($flat_cache_key, $flat_navs);
         
         $this->response($result);
 
@@ -93,9 +93,11 @@ class NavEvent extends BaseRestEvent {
         if(!$nav['link']) {
             return true;
         }
-        $node = implode('.', array_slice(explode('/', $nav['link']), 0, 2));
-        $node .= '.get';
-
+        $node = $nav['auth_node'];
+        if(!$node) {
+            $node = implode('.', array_slice(explode('/', $nav['link']), 0, 2));
+            $node .= '.get';
+        }
 
         return in_array($node, $this->_authed_nodes);
     }

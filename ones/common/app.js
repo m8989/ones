@@ -14,23 +14,34 @@
 
     });
 
-    angular.module('ones', ['ones.framesModule', 'ones.configModule', 'ones.global', 'ones.debuggerModule'])
+    angular.module('ones', ['ones.framesModule', 'ones.configModule', 'ones.global'])
     .run(['$timeout', function($timeout) {
             $timeout(function() {
                 $('#loading-cover').hide();
             }, 2000);
         }])
+        .service('Home.HeartBeatAPI', [
+            'ones.dataApiFactory',
+            function(dataAPI) {
+                this.resource = dataAPI.getResourceInstance({
+                    uri: 'home/heartBeat',
+                    extra_methods: ['api_get']
+                });
+            }
+        ])
     /**
      * 主控制器
      * */
     .controller('MainCtrl', [
         '$scope',
         '$timeout',
+        '$interval',
         'ones.frames',
         'ones.dataApiFactory',
         '$injector',
         'Home.NavAPI',
-        function ($scope, $timeout, frames, dataAPI, $injector, nav) {
+        'Home.HeartBeatAPI',
+        function ($scope, $timeout, $interval, frames, dataAPI, $injector, nav, heart_beat_api) {
 
             $scope.safeApply = function(fn){
                 var phase = this.$root.$$phase;
@@ -125,6 +136,13 @@
                     auto_hide: 5000
                 };
 
+                if(opts.content.msg) {
+                    opts.content = opts.content.msg;
+                }
+                if(opts.content.error) {
+                    opts.type = 'danger';
+                }
+
                 opts = angular.deep_extend(default_opts, opts);
 
                 var alert = $injector.get('$alert')(opts);
@@ -167,6 +185,15 @@
                 });
             };
 
+            // 心跳检测后端登录是否已超时
+            $interval(function(){
+                heart_beat_api.resource.api_get().$promise.then(function(response_data) {
+                    if(response_data.logged_out) {
+                        window.location.href = 'index.html';
+                    }
+                });
+            }, 60000);
+
             $scope._ = _;
 
         }
@@ -177,14 +204,16 @@
         function($scope, $timeout) {
             $scope.active_nav = 0;
             $scope.toggleLeftNavItems = function($index, alias, subNavs) {
+                if($index == $scope.active_nav) {
+                    return;
+                }
                 $scope.$parent.subNavs = [];
                 $timeout(function() {
                     $scope.$parent.subNavs = subNavs;
-                }, 300);
+                });
 
                 $scope.active_nav = $index;
             };
-
         }
     ])
     .controller('LeftSidebarCtrl', [

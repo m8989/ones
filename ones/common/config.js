@@ -7,6 +7,13 @@
 * 是否开启调试模式
 * */
 ones.DEBUG = true;
+
+
+/*
+* 哪些公司可显示DEBUG BAR
+* */
+window.top.__DEBUGGER_ENABLE_FOR = [1];
+
 /*
 * 默认语言
 * */
@@ -27,7 +34,7 @@ ones.api_version = 'v_1';
 /*
 * 消息中心地址
 * */
-ones.mc_socket = 'ws://localhost:7610';
+ones.mc_socket = 'ws://'+window.location.hostname+':7610';
 
 /*
 * 主框架入口页面
@@ -37,6 +44,11 @@ ones.APP_ENTRY = 'app.html';
 /*------可配置项目结束------*/
 
 ones.global_module = angular.module("ones.global", []);
+
+ones.company_profile = {};
+ones.user_info = {};
+ones.system_preference = {};
+ones.user_preference = {};
 
 // 常用按键
 window.KEY_CODES = {
@@ -83,6 +95,12 @@ function config_init(apps, callback) {
                     continue;
                 }
                 ones[k] = data[k];
+            }
+
+            // 未登录直接访问
+            if(window.location.href.indexOf(ones.APP_ENTRY) >= 0 && !ones.company_profile) {
+                window.location.href = './';
+                return false;
             }
 
             window.set_debugger_info(uri, data.__DEBUG__);
@@ -203,6 +221,7 @@ angular.module("ones.configModule", [
         'ones.servicesModule',
         'ones.pluginsModule',
         'ones.configModule',
+        'ones.debuggerModule',
 
         'ones.app.account.main',
 
@@ -251,9 +270,7 @@ angular.module("ones.configModule", [
                         return response;
                     },
                     'responseError': function (response) {
-
                         // @todo debug
-
                         var status = response.status;
                         switch (status) {
                             case 401:

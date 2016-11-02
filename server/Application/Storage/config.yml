@@ -1,6 +1,6 @@
 alias: storage
 author: TEam Swift
-link: https://ng-erp.com
+link: http://ng-erp.com
 document: http://ones_manual.mydoc.io/?t=35703
 requirements:
     - product
@@ -19,7 +19,6 @@ auth_nodes:
 
 include:
     js:
-        - lib/bill
         - apps/storage/main
         - apps/storage/model
         - apps/storage/stockIn

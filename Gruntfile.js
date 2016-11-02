@@ -221,8 +221,8 @@ module.exports = function (grunt) {
                             "ones/bower_components/angular-base64-upload/src/angular-base64-upload.js",
                             "ones/bower_components/jsbarcode/JsBarcode.all.min.js",
                             "ones/bower_components/socket.io-client/socket.io.js",
-                            "bower_components/zeroclipboard/dist/ZeroClipboard.min.js",
-                            "bower_components/ng-clip/dest/ng-clip.min.js"
+                            "ones/bower_components/zeroclipboard/dist/ZeroClipboard.min.js",
+                            "ones/bower_components/ng-clip/dest/ng-clip.min.js"
                         ]
                     }
                 ]
@@ -257,6 +257,7 @@ module.exports = function (grunt) {
                     {
                         dest: '.tmp/concat/assets/js/login.js',
                         src: [
+                            "ones/lib/debugger.js",
                             "ones/lib/vendor/sprintf.js",
                             "ones/lib/function.js",
                             "ones/common/config.js",
@@ -273,6 +274,7 @@ module.exports = function (grunt) {
                     {
                         dest: '.tmp/concat/assets/js/app.js',
                         src: [
+                            "ones/lib/debugger.js",
                             "ones/lib/vendor/sprintf.js",
                             "ones/lib/vendor/md5.js",
                             "ones/lib/require.js",
@@ -294,6 +296,7 @@ module.exports = function (grunt) {
                     {
                         dest: '.tmp/concat/assets/js/frame_lib.js',
                         src: [
+                            "ones/lib/debugger.js",
                             "ones/lib/vendor/sprintf.js",
                             "ones/lib/vendor/md5.js",
                             "ones/lib/vendor/accounting.min.js",
@@ -308,6 +311,7 @@ module.exports = function (grunt) {
                             "ones/lib/form/form.js",
                             "ones/lib/form/form.fields.js",
                             "ones/lib/form/form.fields.tpl.js",
+                            "ones/lib/bill.js",
                             "ones/lib/grid_view.js",
                             "ones/lib/detail_view/detail_view.js",
                             "ones/lib/detail_view/detail_view.widget.js",
@@ -387,16 +391,16 @@ module.exports = function (grunt) {
         //  }
         //},
 
-        svgmin: {
-            dist: {
-                files: [{
-                    expand: true,
-                    cwd: '<%= yeoman.app %>/images',
-                    src: '{,*/}*.svg',
-                    dest: '<%= yeoman.dist %>/images'
-                }]
-            }
-        },
+        //svgmin: {
+        //    dist: {
+        //        files: [{
+        //            expand: true,
+        //            cwd: '<%= yeoman.app %>/images',
+        //            src: '{,*/}*.svg',
+        //            dest: '<%= yeoman.dist %>/images'
+        //        }]
+        //    }
+        //},
 
         htmlmin: {
             dist: {
@@ -430,11 +434,11 @@ module.exports = function (grunt) {
         },
 
         // Replace Google CDN references
-        cdnify: {
-            dist: {
-                html: ['<%= yeoman.dist %>/*.html']
-            }
-        },
+        //cdnify: {
+        //    dist: {
+        //        html: ['<%= yeoman.dist %>/*.html']
+        //    }
+        //},
 
         // Copies remaining files to places other tasks can use
         copy: {
@@ -445,7 +449,7 @@ module.exports = function (grunt) {
                     cwd: '<%= yeoman.app %>',
                     dest: '<%= yeoman.dist %>',
                     src: [
-                        '*.{ico,png,txt}',
+                        '*.{ico,png,txt,md}',
                         '.htaccess',
                         '*.html',
                         'apps/{,**/}*.*',
@@ -491,9 +495,9 @@ module.exports = function (grunt) {
                 'copy:styles'
             ],
             dist: [
-                'copy:styles',
+                'copy:styles'
                 //'imagemin',
-                'svgmin'
+                //'svgmin'
             ]
         },
 

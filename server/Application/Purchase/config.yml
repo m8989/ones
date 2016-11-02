@@ -1,6 +1,6 @@
 alias: purchase
 author: TEam Swift
-link: https://ng-erp.com
+link: http://ng-erp.com
 document: http://ones_manual.mydoc.io/?t=35701
 requirements: 
     - product
@@ -19,7 +19,6 @@ include:
     js:
         - apps/purchase/main
         - apps/purchase/model
-        - lib/bill
         - apps/product/model
         - apps/supplier/model
 global_include:

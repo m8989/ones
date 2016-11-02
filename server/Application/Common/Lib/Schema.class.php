@@ -220,8 +220,7 @@ class Schema {
         }
 
         // 类型widget
-        if(!array_key_exists('widget', $result)) {
-            $result['type'] = !array_key_exists('type', $result) ? '' : $result['type'];
+        if(!$result['widget']) {
             switch($result['type']) {
                 case "text":
                     $result['widget'] = 'textarea';

@@ -4,7 +4,7 @@
  * @app SaleAnalytics
  * @package SaleAnalytics.controller.SaleBoard
  * @author laofahai@TEam Swift
- * @link https://ng-erp.com
+ * @link http://ng-erp.com
  * */
 namespace SaleAnalytics\Controller;
 use Common\Controller\BaseRestController;
@@ -37,7 +37,7 @@ class SaleBoardController extends BaseRestController {
 
         $order_service = D('Sale/Orders');
         $detail_service = D('Sale/OrdersDetail');
-        $product_service = D('Product/Product');
+        $product_service = D('Product/Product', 'Model');
 
         $map = [
             'created' => ['BETWEEN', [$start_time, $end_time]],
@@ -55,7 +55,7 @@ class SaleBoardController extends BaseRestController {
         ])->limit($limit)->order($list_order)->select();
 
         $product_ids = get_array_by_field($all_details, 'product_id');
-        $products = $product_service->where(['id'=>['IN', $product_ids]])->select();
+        $products = $product_service->where(['Product.id'=>['IN', $product_ids]])->select();
         $products = get_array_to_ka($products, 'id');
 
         $response_data = [

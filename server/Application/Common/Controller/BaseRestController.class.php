@@ -4,6 +4,7 @@ namespace Common\Controller;
 
 use Account\Service\AuthorizeService;
 use Common\Lib\CommonLog;
+use Home\Service\SchemaService;
 use MessageCenter\Service\MessageCenter;
 use Smtp\Service\SendMailService;
 use Think\Controller\RestController;
@@ -66,27 +67,6 @@ class BaseRestController extends RestController {
 
     public function __construct() {
 
-        //基本运行配置
-        $this->bootstrapConfigs = parse_yml(ENTRY_PATH.'/config.yaml');
-
-        $this->bootstrapConfigs = $this->bootstrapConfigs ? $this->bootstrapConfigs : [];
-        //当前接口版本
-        if(I('server.HTTP_API_VERSION')) {
-            define('API_VERSION', I('server.HTTP_API_VERSION'));
-        } else {
-            define('API_VERSION', false);
-        }
-
-        //当前语言
-        $this->currentLanguage = $this->bootstrapConfigs["default_language"] ? $this->bootstrapConfigs["default_language"] : 'zh-cn' ;
-        if(I("server.HTTP_CLIENT_LANGUAGE")) {
-            $this->currentLanguage = I("server.HTTP_CLIENT_LANGUAGE");
-        }
-        if(I('get.lang')) {
-            $this->currentLanguage = I('get.lang');
-        }
-        define('CURRENT_LANGUAGE', $this->currentLanguage);
-        
         //支持方法
         if(!$this->allowMethod) {
             $this->allowMethod = explode(",", strtolower(SUPPORTED_METHOD));
@@ -97,7 +77,7 @@ class BaseRestController extends RestController {
             session(
                 array(
                     'id'=>I("server.HTTP_TOKEN"),
-                    'expire'=>1800,
+                    'expire'=>99999,
                 )
             );
             session('[start]');
@@ -111,9 +91,9 @@ class BaseRestController extends RestController {
         }
 
         tag('before_controller_construct');
-        
+
         parent::__construct();
-        
+
         // 当前请求 =》 auth_node
         $this->current_action_all = sprintf("%s.%s.%s.%s",
             lcfirst(MODULE_NAME),
@@ -138,7 +118,7 @@ class BaseRestController extends RestController {
 
         //当前模块前端别名
         $this->module_alias = __(sprintf('%s.%s', lcfirst(MODULE_NAME), lcfirst(CONTROLLER_NAME)));
-        
+
         //导入非当前应用的插件及函数等信息
         foreach($this->activeApps as $app) {
             $app = ucfirst($app);
@@ -156,18 +136,38 @@ class BaseRestController extends RestController {
                 require_once APPLICATION_PATH.$app.'/Common/function.php';
             }
         }
+
+        //基本运行配置
+        $this->bootstrapConfigs = parse_yml(ENTRY_PATH.'/config.yaml');
+
+        //当前接口版本
+        if(I('server.HTTP_API_VERSION')) {
+            define('API_VERSION', I('server.HTTP_API_VERSION'));
+        } else {
+            define('API_VERSION', false);
+        }
+
+        //当前语言
+        $this->currentLanguage = $this->bootstrapConfigs["default_language"] ? $this->bootstrapConfigs["default_language"] : 'zh-cn' ;
+        if(I("server.HTTP_CLIENT_LANGUAGE")) {
+            $this->currentLanguage = I("server.HTTP_CLIENT_LANGUAGE");
+        }
+        if(I('get.lang')) {
+            $this->currentLanguage = I('get.lang');
+        }
+        define('CURRENT_LANGUAGE', $this->currentLanguage);
         
         /*
          * 解析应用配置
          * * */
-        $cachedAppConfig = S("configs/app/all");
+        $cachedAppConfig = F("configs/app_config_all");
         if(DEBUG or !$cachedAppConfig) {
             foreach (new RecursiveFileFilterIterator(APP_PATH, "config.yml") as $item) {
                 $app = lcfirst(basename(dirname($item)));
                 $this->appConfigs[$app] = parse_yml($item);
             }
             
-            S("configs/app/all", $this->appConfigs);
+            F("configs/app_config_all", $this->appConfigs);
         } else if(!DEBUG && $cachedAppConfig) {
             $this->appConfigs = $cachedAppConfig;
         }
@@ -187,7 +187,7 @@ class BaseRestController extends RestController {
 
         // 获得用户已授权节点
         $authed_nodes = session('authed_nodes');
-        if(DEBUG || !$authed_nodes) {
+        if(APP_DEBUG || !$authed_nodes) {
             $authed_nodes = D('Account/Authorize')->get_authed_nodes();
             session('authed_nodes', $authed_nodes);
         }
@@ -338,8 +338,6 @@ class BaseRestController extends RestController {
 
             $list = $model->select();
 
-//            echo $model->getLastSql();exit;
-
             $this->queryMeta = array(
                 "map" => $map,
                 "limit" => $limit,
@@ -372,7 +370,7 @@ class BaseRestController extends RestController {
 
             $returnData = array(
                 array("count" => $total, "totalPages"=>$totalPages),
-                $list ? $list : [],
+                $list,
             );
 
             if($return) {
@@ -384,7 +382,7 @@ class BaseRestController extends RestController {
             if($return) {
                 return $list;
             }
-            $this->response($list ? $list : [], $model);
+            $this->response($list, $model);
         }
 
     }
@@ -529,6 +527,10 @@ class BaseRestController extends RestController {
 
         $item = $model->where($map)->find();
 
+        if($this->echoSQL) {
+            echo $model->getLastSql();exit;
+        }
+
         if(!$item) {
             return;
         }
@@ -560,6 +562,8 @@ class BaseRestController extends RestController {
             return $this->$api_method();
         }
 
+        $id = I('get.id');
+
         $extra_method = '_EM_'.I('get._m');
         if(I('get._m') && method_exists($this, $extra_method)) {
             return $this->$extra_method();
@@ -582,6 +586,11 @@ class BaseRestController extends RestController {
             }
         }
 
+        $source = $model->find($id);
+        if(array_key_exists('company_id', $source) && $source['company_id'] != get_current_company_id()) {
+            return $this->error(__('common.Can not edit item which not you added'));
+        }
+
         // 插入数据之前的插件钩子
         $params = array();
         tag('before_item_update', $params);
@@ -600,7 +609,7 @@ class BaseRestController extends RestController {
          * */
         $app_alias = lcfirst(MODULE_NAME);
         $module_alias = lcfirst(CONTROLLER_NAME);
-        $id = I('get.id');
+
         MessageCenter::broadcast(['edit'], [
             "id" => $id,
             "subject" => '#' . $id,
@@ -617,6 +626,10 @@ class BaseRestController extends RestController {
         $data_model = D('DataModel/DataModelData', 'Service');
         $data_model->insert(I('get.id'), I('post.'), $data_model_fields, $modelName);
 
+        if(method_exists($this, '_after_update')) {
+            $this->_after_update($id);
+        }
+
         return $rs;
     }
 
@@ -624,6 +637,10 @@ class BaseRestController extends RestController {
      * 默认删除处理
      * */
     public function on_delete($return = false) {
+
+        if(I('request.forever_delete')) {
+            return $this->error("为防止数据丢失， 系统禁用了永久删除功能");
+        }
 
         if($api_method = $this->api_version_method_exists('on_delete')) {
             return $this->$api_method($return);
@@ -640,16 +657,36 @@ class BaseRestController extends RestController {
             return false;
         }
 
+        $company_id = get_current_company_id();
+//        print_r($source_rows);
+        foreach($source_rows as $row) {
+            if(!array_key_exists('company_id', $row)) {
+                break;
+            }
+            if($row['company_id'] != $company_id) {
+                return $this->error(__('common.Can not edit item which not you added'));
+            }
+        }
+
         if(method_exists($model, "do_delete")) {
             $rs = $model->do_delete($ids);
         } else {
-            $rs = $model->where(array(
-                "id" => array("IN", $ids)
-            ))->delete();
+            $table_name = $model->get('tableName') ? $model->get('tableName') : model_name_to_table_name($model->get('name'));
+            $schema = SchemaService::getSchemaByApp(lcfirst(MODULE_NAME), $table_name);
+
+            if($schema[$table_name]['enable_trash']) {
+                $rs = $model->where(["id" => array("IN", $ids)])->save([
+                    "trashed" => "1"
+                ]);
+            } else {
+                $rs = $model->where(array(
+                    "id" => array("IN", $ids)
+                ))->delete();
+            }
         }
 
         if(false === $rs) {
-            E(__("common.Operation Failed"). ': ' .$model->getError());
+            return $this->error(__("common.Operation Failed"). ': ' .$model->getError());
         }
 
         $params = array(
@@ -727,7 +764,12 @@ class BaseRestController extends RestController {
             $mv = explode(',', I('get._mv'));
             for($i=0; $i<count($mf);$i++) {
                 if($mf[$i] && isset($mv[$i])) {
-                    $map[$mf[$i]] = $mv[$i];
+                    if($mv[$i] === 'undefined') {
+                        $map[$mf[$i]] = ['LIKE', "%".I('get._kw')."%"];
+                    } else {
+                        $map[$mf[$i]] = $mv[$i];
+                    }
+
                 }
             }
         }
@@ -749,7 +791,8 @@ class BaseRestController extends RestController {
                     $map[$_mf[0]] = array('LIKE', "%{$kw}%");
                 } else {
                     foreach($_mf as $m) {
-                        $where[$this->model_name.'.'.trim($m)] = array('LIKE', "%{$kw}%");
+                        $tmp_mf_field = strpos($m, '.') === false ? $this->model_name.'.'.trim($m) : $m;
+                        $where[$tmp_mf_field] = array('LIKE', "%{$kw}%");
                     }
                 }
 
@@ -760,7 +803,7 @@ class BaseRestController extends RestController {
                         $where[$sf] = array('LIKE', "%{$kw}%");
                     }
                 // 否则将尝试使用几个常用字段
-                } else {
+                } else if($model->fuzzy_search !== false) {
                     $fields = array(
                         "name"
                     );
@@ -782,6 +825,12 @@ class BaseRestController extends RestController {
         // only trash
         if(I("get._ot")) {
             $map[$this->model_name.'.trashed'] = '1';
+        } else {
+            $table_name = $model->get('tableName') ? $model->get('tableName') : model_name_to_table_name($model->get('name'));
+            $schema = SchemaService::getSchemaByApp(lcfirst(MODULE_NAME), $table_name);
+            if($schema[$table_name]['enable_trash']) {
+                $map[$this->model_name.'.trashed'] = '0';
+            }
         }
 
         /*
@@ -942,6 +991,17 @@ class BaseRestController extends RestController {
     protected function login_required($node=null) {
         return $this->httpError(401, __("account.Login Required").($node ? ": ".$node : ""));
     }
+
+    public function _EM_untrash($ids) {
+        $modelName = $this->deleteModel ? $this->deleteModel : sprintf("%s/%s", MODULE_NAME, CONTROLLER_NAME);
+        $model = D($modelName);
+        $model->real_model_name = $this->model_name;
+        $ids = explode(',', I('get.id'));
+
+        $model->where([
+            'id' => ["in", $ids]
+        ])->save(['trashed'=>'0']);
+    }
     
     /*
      * 应用是否启用
@@ -956,12 +1016,12 @@ class BaseRestController extends RestController {
      * @param $data 返回数据
      * @param $model 可选参数，传递此参数将对返回数据根据数据表定义进行强制类型转换处理
      * */
-    protected function response($data, $model=null, $is_table=false) {
+    protected function response($data, $model=null, $is_table=false, $app=MODULE_NAME) {
         /*
          * 格式化数据
          * **/
         if($model) {
-            $data = Schema::data_format($data, $model, $is_table);
+            $data = Schema::data_format($data, $model, $is_table, $app);
         }
 
         $data = $this->append_log_to_data($data);
@@ -1008,7 +1068,7 @@ class BaseRestController extends RestController {
      * 日志 附加在返回的数据中
      * */
     protected function append_log_to_data($data) {
-        if(true !== RESPONSE_WITH_DEBUG_INFO || !$data) {
+        if(true !== APP_DEBUG || !$data) {
             return $data;
         }
 
@@ -1039,6 +1099,31 @@ class BaseRestController extends RestController {
         }
 
         return $data;
+    }
+
+    public function __call($method,$args) {
+        if( 0 === strcasecmp($method,ACTION_NAME.C('ACTION_SUFFIX'))) {
+            if(method_exists($this,$method.'_'.$this->_method.'_'.$this->_type)) { // RESTFul方法支持
+                $fun  =  $method.'_'.$this->_method.'_'.$this->_type;
+                $this->$fun();
+            }elseif($this->_method == $this->defaultMethod && method_exists($this,$method.'_'.$this->_type) ){
+                $fun  =  $method.'_'.$this->_type;
+                $this->$fun();
+            }elseif($this->_type == $this->defaultType && method_exists($this,$method.'_'.$this->_method) ){
+                $fun  =  $method.'_'.$this->_method;
+                $this->$fun();
+            }elseif(method_exists($this,'_empty')) {
+                // 如果定义了_empty操作 则调用
+                $this->_empty($method, $args);
+            } else if(method_exists($this, $method)) {
+                $this->$method();
+//            }elseif(file_exists_case($this->view->parseTemplate())){
+//                // 检查是否存在默认模版 如果有直接输出模版
+//                $this->display();
+            }else{
+                E(L('_ERROR_ACTION_').':'.ACTION_NAME);
+            }
+        }
     }
     
 }
